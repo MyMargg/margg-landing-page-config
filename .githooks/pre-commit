@@ -1,0 +1,64 @@
+#!/bin/sh
+# Pre-commit hook: validate and auto-format config.json
+
+STAGED=$(git diff --cached --name-only)
+
+if echo "$STAGED" | grep -q "^config\.json$"; then
+  echo "Validating config.json..."
+
+  # ── 1. Validate JSON syntax (working-tree file) ───────────────────────────────
+  if command -v node >/dev/null 2>&1; then
+    node -e "
+      const fs = require('fs');
+      try {
+        JSON.parse(fs.readFileSync('config.json', 'utf8'));
+      } catch (e) {
+        console.error('JSON syntax error:', e.message);
+        process.exit(1);
+      }
+    " 2>&1
+    SYNTAX_EXIT=$?
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -m json.tool config.json > /dev/null 2>&1
+    SYNTAX_EXIT=$?
+  else
+    echo "WARNING: Neither node nor python3 found -- skipping syntax check."
+    SYNTAX_EXIT=0
+  fi
+
+  if [ $SYNTAX_EXIT -ne 0 ]; then
+    echo "ERROR: config.json has invalid JSON syntax. Fix it and try again."
+    exit 1
+  fi
+
+  # ── 2. Auto-format and re-stage ───────────────────────────────────────────────
+  if command -v npx >/dev/null 2>&1; then
+    npx --yes prettier --write config.json --log-level silent 2>/dev/null
+    FORMAT_EXIT=$?
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c "
+import json
+with open('config.json', encoding='utf-8') as f:
+    data = json.load(f)
+with open('config.json', 'w', encoding='utf-8') as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+"
+    FORMAT_EXIT=$?
+  else
+    echo "WARNING: Cannot auto-format -- neither npx nor python3 found."
+    FORMAT_EXIT=0
+  fi
+
+  if [ $FORMAT_EXIT -ne 0 ]; then
+    echo "ERROR: Failed to format config.json."
+    exit 1
+  fi
+
+  # Re-stage the (possibly reformatted) file
+  git add config.json
+
+  echo "config.json is valid and formatted."
+fi
+
+exit 0

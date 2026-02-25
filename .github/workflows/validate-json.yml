@@ -1,0 +1,53 @@
+name: Validate & Format config.json
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  validate-and-format:
+    name: Validate & Format JSON
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 1. Syntax check via Node ──────────────────────────────────────────────
+      - name: Validate JSON syntax
+        run: |
+          node -e "
+            const fs = require('fs');
+            try {
+              JSON.parse(fs.readFileSync('config.json', 'utf8'));
+              console.log('✅ JSON syntax is valid.');
+            } catch (e) {
+              console.error('❌ JSON syntax error:', e.message);
+              process.exit(1);
+            }
+          "
+
+      # ── 2. Setup Node for Prettier ────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # ── 3. Install Prettier ───────────────────────────────────────────────────
+      - name: Install Prettier
+        run: npm install --global prettier
+
+      # ── 4. Check formatting ───────────────────────────────────────────────────
+      - name: Check JSON formatting
+        run: |
+          prettier --check config.json
+          if [ $? -ne 0 ]; then
+            echo ""
+            echo "❌ config.json is not properly formatted."
+            echo "   Run: npx prettier --write config.json"
+            echo "   (The pre-commit hook will do this automatically on commit.)"
+            exit 1
+          fi
+          echo "✅ config.json formatting is correct."

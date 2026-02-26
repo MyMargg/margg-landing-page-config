@@ -3,8 +3,8 @@
     "logoAlt": "Margg",
     "links": [
       { "label": "Home", "href": "#", "primary": true },
-      { "label": "Our Products", "href": "#" },
-      { "label": "Contact Us", "href": "#" }
+      { "label": "Our Products", "href": "#products" },
+      { "label": "Contact Us", "href": "#contact-us" }
     ]
   },
 
